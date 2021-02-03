@@ -1,9 +1,16 @@
-﻿using Xunit;
+﻿using EFCore.BulkExtensions.SqlAdapters;
+using Xunit;
 
 namespace EFCore.BulkExtensions.Tests
 {
     public class BatchUtilTests
     {
+        public BatchUtilTests()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         [Fact]
         public void GetBatchSql_UpdateSqlite_ReturnsExpectedValues()
         {

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -9,6 +10,12 @@ namespace EFCore.BulkExtensions.Tests
 {
     public class EFCoreBatchTestAsync
     {
+        public EFCoreBatchTestAsync()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         protected int EntitiesNumber => 1000;
 
         [Theory]

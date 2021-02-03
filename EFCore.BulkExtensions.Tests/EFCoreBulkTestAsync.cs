@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -11,6 +12,12 @@ namespace EFCore.BulkExtensions.Tests
 {
     public class EFCoreBulkTestAsync
     {
+        public EFCoreBulkTestAsync()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         protected int EntitiesNumber => 100000;
 
         private static Func<TestContext, int> ItemsCountQuery = EF.CompileQuery<TestContext, int>(ctx => ctx.Items.Count());

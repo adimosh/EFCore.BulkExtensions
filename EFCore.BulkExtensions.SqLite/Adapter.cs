@@ -7,7 +7,7 @@ using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace EFCore.BulkExtensions.SQLAdapters.SQLite
+namespace EFCore.BulkExtensions.Adapters.Sqlite
 {
     public class Adapter : ISqlOperationsAdapter
     {

@@ -14,6 +14,12 @@ namespace EFCore.BulkExtensions.Tests
 {
     public class EFCoreBulkTest
     {
+        public EFCoreBulkTest()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         protected int EntitiesNumber => 100000;
 
         private static Func<TestContext, int> ItemsCountQuery = EF.CompileQuery<TestContext, int>(ctx => ctx.Items.Count());

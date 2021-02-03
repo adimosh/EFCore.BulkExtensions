@@ -20,6 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EFCore.BulkExtensions.SqLite\EFCore.BulkExtensions.SqLite.csproj" />
+    <ProjectReference Include="..\EFCore.BulkExtensions.SqlServer\EFCore.BulkExtensions.SqlServer.csproj" />
     <ProjectReference Include="..\EFCore.BulkExtensions\EFCore.BulkExtensions.csproj" />
   </ItemGroup>
 

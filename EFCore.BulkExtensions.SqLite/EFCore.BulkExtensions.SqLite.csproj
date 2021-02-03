@@ -7,7 +7,7 @@
         <PackageReleaseNotes>Split into multiple packages to accomodate different providers</PackageReleaseNotes>
         <AssemblyVersion>3.2.7.0</AssemblyVersion>
         <FileVersion>3.2.7.0</FileVersion>
-        <RootNamespace>EFCore.BulkExtensions.Adapters.SqLite</RootNamespace>
+        <RootNamespace>EFCore.BulkExtensions.Adapters.Sqlite</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

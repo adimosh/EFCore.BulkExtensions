@@ -1,10 +1,17 @@
 using System.Collections.Generic;
+using EFCore.BulkExtensions.SqlAdapters;
 using Xunit;
 
 namespace EFCore.BulkExtensions.Tests
 {
     public class SqlQueryBuilderUnitTests
     {
+        public SqlQueryBuilderUnitTests()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         [Fact]
         public void MergeTableInsertTest()
         {

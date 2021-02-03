@@ -11,6 +11,12 @@ namespace EFCore.BulkExtensions.Tests
 {
     public class EFCoreBatchTest
     {
+        public EFCoreBatchTest()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         protected int EntitiesNumber => 1000;
 
         [Theory]

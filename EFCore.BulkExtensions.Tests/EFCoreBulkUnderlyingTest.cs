@@ -5,12 +5,19 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using EFCore.BulkExtensions.SqlAdapters;
 using Xunit;
 
 namespace EFCore.BulkExtensions.Tests
 {
     public class EFCoreBulkUnderlyingTest
     {
+        public EFCoreBulkUnderlyingTest()
+        {
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.SqlServer.Adapter, Adapters.SqlServer.Dialect>("SqlServer");
+            SqlAdaptersMapping.TryRegisterMapping<Adapters.Sqlite.Adapter, Adapters.Sqlite.Dialect>("Sqlite");
+        }
+
         protected int EntitiesNumber => 1000;
 
         private static Func<TestContext, int> ItemsCountQuery = EF.CompileQuery<TestContext, int>(ctx => ctx.Items.Select(i => i.ItemId).Count());
