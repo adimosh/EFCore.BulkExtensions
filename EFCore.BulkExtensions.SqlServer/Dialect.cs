@@ -2,14 +2,18 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
+using System.Text;
 using EFCore.BulkExtensions.SqlAdapters;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
-namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
+namespace EFCore.BulkExtensions.Adapters.SqlServer
 {
-    public class SqlServerDialect : IQueryBuilderSpecialization
+    public class Dialect : IQueryBuilderSpecialization
     {
         private static readonly int SelectStatementLength = "SELECT".Length;
+
+        public string DefaultSchema => "dbo";
 
         public List<object> ReloadSqlParameters(DbContext context, List<object> sqlParameters)
         {
@@ -33,7 +37,7 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
         public (string, string) GetBatchSqlReformatTableAliasAndTopStatement(string sqlQuery)
         {
             var isSqlServer = true;  // SqlServer : PostrgeSql;
-            var escapeSymbolEnd =isSqlServer ? "]" : ".";
+            var escapeSymbolEnd = isSqlServer ? "]" : ".";
             var escapeSymbolStart = isSqlServer ? "[" : " "; // SqlServer : PostrgeSql;
             var tableAliasEnd = sqlQuery.Substring(SelectStatementLength, sqlQuery.IndexOf(escapeSymbolEnd, StringComparison.Ordinal) - SelectStatementLength); // " TOP(10) [table_alias" / " [table_alias" : " table_alias"
             var tableAliasStartIndex = tableAliasEnd.IndexOf(escapeSymbolStart, StringComparison.Ordinal);
@@ -51,6 +55,21 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
                 TableAliasSuffixAs = tableAliasSuffixAs,
                 Sql = fullQuery
             };
+        }
+
+        public IDbDataParameter CreateParameter()
+        {
+            return new SqlParameter();
+        }
+
+        public string WrapAliasName(string aliasName)
+        {
+            return $"[{aliasName}]";
+        }
+
+        public StringBuilder ReplaceAliasBeforeSuffix(StringBuilder columnNames, string aliasName)
+        {
+            return columnNames;
         }
     }
 }

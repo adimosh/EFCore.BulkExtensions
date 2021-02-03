@@ -2,6 +2,7 @@
 using System.Data;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.Data.Sqlite;
@@ -9,8 +10,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EFCore.BulkExtensions.SQLAdapters.SQLite
 {
-    public class SqLiteDialect : IQueryBuilderSpecialization
+    public class Dialect : IQueryBuilderSpecialization
     {
+        public string DefaultSchema => string.Empty;
+
         public List<object> ReloadSqlParameters(DbContext context, List<object> sqlParameters)
         {
             var sqlParametersReloaded = new List<object>();
@@ -43,6 +46,23 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLite
             result.Sql = fullQuery.Substring(match.Index + match.Length);
 
             return result;
+        }
+
+        public IDbDataParameter CreateParameter()
+        {
+            return new SqliteParameter();
+        }
+
+        public string WrapAliasName(string aliasName)
+        {
+            return aliasName;
+        }
+
+        public StringBuilder ReplaceAliasBeforeSuffix(StringBuilder columnNames, string aliasName)
+        {
+            return columnNames.Replace(
+                $"[{aliasName}].",
+                "");
         }
 
         internal static bool IsStringConcat(BinaryExpression binaryExpression)

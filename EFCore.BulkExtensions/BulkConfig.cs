@@ -35,7 +35,7 @@ namespace EFCore.BulkExtensions
 
         public List<string> UpdateByProperties { get; set; }
 
-        // since Microsoft.Data.SqlClient.SqlBulkCopyOptions is a superset of 
+        // since Microsoft.Data.SqlClient.SqlBulkCopyOptions is a superset of
         // System.Data.SqlClient.SqlBulkCopyOptions, allow user to always specify
         // Microsoft.Data.SqlClient and we will convert it to the desired type
         public Microsoft.Data.SqlClient.SqlBulkCopyOptions SqlBulkCopyOptions { get; set; }
@@ -43,7 +43,7 @@ namespace EFCore.BulkExtensions
         public Func<DbConnection, DbConnection> UnderlyingConnection { get; set; }
         public Func<DbTransaction, DbTransaction> UnderlyingTransaction { get; set; }
 
-        internal OperationType OperationType { get; set; }
+        public OperationType OperationType { get; set; }
     }
 
     public class StatsInfo

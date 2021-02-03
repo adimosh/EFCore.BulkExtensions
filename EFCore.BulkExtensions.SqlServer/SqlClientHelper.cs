@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Text;
+using System.Data.SqlClient;
 
 namespace EFCore.BulkExtensions
 {
@@ -73,11 +72,11 @@ namespace EFCore.BulkExtensions
         /// Use to determine what type of structures support the connection
         /// </summary>
         /// <param name="connection"></param>
-        /// <returns>true if the connection is System.Data.SqlClient.SqlConnection; otherwise, 
+        /// <returns>true if the connection is System.Data.SqlClient.SqlConnection; otherwise,
         /// returns false, indicating that it is Microsoft.Data.SqlClient.SqlConnection.</returns>
         internal static bool IsSystemConnection(IDbConnection connection)
         {
-            if (connection.GetType() == typeof(System.Data.SqlClient.SqlConnection))
+            if (connection is SqlConnection)
             {
                 return true;
             }

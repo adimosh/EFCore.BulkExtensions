@@ -110,9 +110,7 @@ namespace EFCore.BulkExtensions
                 throw new InvalidOperationException($"DbContext does not contain EntitySet for Type: { type.Name }");
 
             //var relationalData = entityType.Relational(); relationalData.Schema relationalData.TableName // DEPRECATED in Core3.0
-            bool isSqlServer = context.Database.ProviderName.EndsWith(DbServer.SqlServer.ToString());
-            string defaultSchema = isSqlServer ? "dbo" : null;
-            Schema = entityType.GetSchema() ?? defaultSchema;
+            Schema = entityType.GetSchema() ?? SqlAdaptersMapping.GetAdapterDialect(context).DefaultSchema;
             TableName = entityType.GetTableName();
 
             TempTableSufix = "Temp";
@@ -191,7 +189,7 @@ namespace EFCore.BulkExtensions
             {
                 if (property.PropertyInfo != null) // skip Shadow Property
                 {
-                    FastPropertyDict.Add(property.Name, new FastProperty(property.PropertyInfo));   
+                    FastPropertyDict.Add(property.Name, new FastProperty(property.PropertyInfo));
                 }
             }
 
@@ -487,7 +485,7 @@ namespace EFCore.BulkExtensions
 
         protected int GetNumberUpdated(DbContext context)
         {
-            var resultParameter = SqlClientHelper.CreateParameter(context.Database.GetDbConnection());
+            var resultParameter = SqlAdaptersMapping.GetAdapterDialect(context).CreateParameter();
             resultParameter.ParameterName = "@result";
             resultParameter.DbType = DbType.Int32;
             resultParameter.Direction = ParameterDirection.Output;
@@ -499,7 +497,7 @@ namespace EFCore.BulkExtensions
         protected async Task<int> GetNumberUpdatedAsync(DbContext context, CancellationToken cancellationToken)
         {
             var resultParameters = new List<IDbDataParameter>();
-            var p = SqlClientHelper.CreateParameter(context.Database.GetDbConnection());
+            var p = SqlAdaptersMapping.GetAdapterDialect(context).CreateParameter();
             p.ParameterName = "@result";
             p.DbType = DbType.Int32;
             p.Direction = ParameterDirection.Output;
@@ -542,7 +540,7 @@ namespace EFCore.BulkExtensions
             UpdateReadEntities<object>(type, entities, existingEntities);
         }
 
-        internal void UpdateReadEntities<T>(Type type, IList<T> entities, IList<T> existingEntities)
+        public void UpdateReadEntities<T>(Type type, IList<T> entities, IList<T> existingEntities)
         {
             List<string> propertyNames = PropertyColumnNamesDict.Keys.ToList();
             if (HasOwnedTypes)
@@ -625,7 +623,7 @@ namespace EFCore.BulkExtensions
             LoadOutputData<object>(context, type, entities);
         }
 
-        internal void LoadOutputData<T>(DbContext context, Type type, IList<T> entities) where T : class
+        public void LoadOutputData<T>(DbContext context, Type type, IList<T> entities) where T : class
         {
             bool hasIdentity = OutputPropertyColumnNamesDict.Any(a => a.Value == IdentityColumnName);
             if (BulkConfig.SetOutputIdentity && hasIdentity)
@@ -658,7 +656,7 @@ namespace EFCore.BulkExtensions
             await LoadOutputDataAsync<object>(context, type, entities, cancellationToken).ConfigureAwait(false);
         }
 
-        internal async Task LoadOutputDataAsync<T>(DbContext context, Type type, IList<T> entities, CancellationToken cancellationToken) where T : class
+        public async Task LoadOutputDataAsync<T>(DbContext context, Type type, IList<T> entities, CancellationToken cancellationToken) where T : class
         {
             bool hasIdentity = OutputPropertyColumnNamesDict.Any(a => a.Value == IdentityColumnName);
             if (BulkConfig.SetOutputIdentity && hasIdentity)

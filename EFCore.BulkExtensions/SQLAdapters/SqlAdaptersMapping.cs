@@ -1,36 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using EFCore.BulkExtensions.SQLAdapters.SQLite;
-using EFCore.BulkExtensions.SQLAdapters.SQLServer;
 using Microsoft.EntityFrameworkCore;
 
 namespace EFCore.BulkExtensions.SqlAdapters
 {
-    public enum DbServer
-    {
-        SqlServer,
-
-        // MySql,
-        //  PostgreSql,
-        Sqlite,
-    }
-
     public static class SqlAdaptersMapping
     {
-        public static readonly Dictionary<DbServer, ISqlOperationsAdapter> SqlOperationAdapterMapping =
-            new Dictionary<DbServer, ISqlOperationsAdapter>
-            {
-                {DbServer.Sqlite, new SqLiteOperationsAdapter()},
-                {DbServer.SqlServer, new SqlOperationsServerAdapter()}
-            };
+        private static readonly Dictionary<string, ISqlOperationsAdapter> SqlOperationAdapterMapping =
+            new Dictionary<string, ISqlOperationsAdapter>();
 
-        public static readonly Dictionary<DbServer, IQueryBuilderSpecialization> SqlQueryBuilderSpecializationMapping =
-            new Dictionary<DbServer, IQueryBuilderSpecialization>
+        private static readonly Dictionary<string, IQueryBuilderSpecialization> SqlQueryBuilderSpecializationMapping =
+            new Dictionary<string, IQueryBuilderSpecialization>();
+
+        public static void RegisterMapping<TAdapter, TDialect>(string providerName)
+            where TAdapter : ISqlOperationsAdapter, new()
+            where TDialect : IQueryBuilderSpecialization, new()
+        {
+            // TODO: add overload
+            if (string.IsNullOrWhiteSpace(providerName))
             {
-                {DbServer.Sqlite, new SqLiteDialect()},
-                {DbServer.SqlServer, new SqlServerDialect()}
-            };
+                throw new ArgumentException(
+                    "The argument must be a valid, non-empty provider name.",
+                    nameof(providerName));
+            }
+            if (SqlOperationAdapterMapping.ContainsKey(providerName))
+            {
+                throw new InvalidOperationException("Provider mapping already registered for this provider.");
+            }
+            SqlOperationAdapterMapping.Add(providerName, new TAdapter());
+            SqlQueryBuilderSpecializationMapping.Add(providerName, new TDialect());
+        }
 
         public static ISqlOperationsAdapter CreateBulkOperationsAdapter(DbContext context)
         {
@@ -43,15 +42,18 @@ namespace EFCore.BulkExtensions.SqlAdapters
             var providerType = GetDatabaseType(context);
             return GetAdapterDialect(providerType);
         }
-        
-        public static IQueryBuilderSpecialization GetAdapterDialect(DbServer providerType)
+
+        public static IQueryBuilderSpecialization GetAdapterDialect(string providerType)
         {
             return SqlQueryBuilderSpecializationMapping[providerType];
         }
 
-        public static DbServer GetDatabaseType(DbContext context)
+        public static string GetDatabaseType(DbContext context)
         {
-            return context.Database.ProviderName.EndsWith(DbServer.Sqlite.ToString()) ? DbServer.Sqlite : DbServer.SqlServer;
+            // TODO: This is a naive check, should probably replace with something better, that recognizes actual providers
+            var providerName = context.Database.ProviderName;
+
+            return providerName.Substring(context.Database.ProviderName.LastIndexOf('.') + 1);
         }
     }
 }

@@ -1,6 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Data;
 using System.Linq.Expressions;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 namespace EFCore.BulkExtensions.SqlAdapters
@@ -13,6 +14,8 @@ namespace EFCore.BulkExtensions.SqlAdapters
     }
     public interface IQueryBuilderSpecialization
     {
+        string DefaultSchema { get; }
+
         List<object> ReloadSqlParameters(DbContext context, List<object> sqlParameters);
 
         string GetBinaryExpressionAddOperation(BinaryExpression binaryExpression);
@@ -21,5 +24,11 @@ namespace EFCore.BulkExtensions.SqlAdapters
 
         ExtractedTableAlias GetBatchSqlExtractTableAliasFromQuery(string fullQuery, string tableAlias,
             string tableAliasSuffixAs);
+
+        IDbDataParameter CreateParameter();
+
+        string WrapAliasName(string aliasName);
+
+        StringBuilder ReplaceAliasBeforeSuffix(StringBuilder columnNames, string aliasName);
     }
 }

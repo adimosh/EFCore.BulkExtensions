@@ -29,7 +29,7 @@ namespace EFCore.BulkExtensions
             (string sql, string tableAlias, string tableAliasSufixAs, string topStatement, string leadingComments, IEnumerable<object> innerParameters) = GetBatchSql(query, context, isUpdate: false);
 
             innerParameters = ReloadSqlParameters(context, innerParameters.ToList()); // Sqlite requires SqliteParameters
-            tableAlias = (SqlAdaptersMapping.GetDatabaseType(context) == DbServer.SqlServer) ? $"[{tableAlias}]" : tableAlias;
+            tableAlias = SqlAdaptersMapping.GetAdapterDialect(context).WrapAliasName(tableAlias);
 
             var resultQuery = $"{leadingComments}DELETE {topStatement}{tableAlias}{sql}";
             return (resultQuery, new List<object>(innerParameters));
@@ -44,14 +44,14 @@ namespace EFCore.BulkExtensions
         // WHERE [a].[Columns] = FilterValues
         public static (string, List<object>) GetSqlUpdate(IQueryable query, DbContext context, object updateValues, List<string> updateColumns)
         {
-            (string sql, string tableAlias, string tableAliasSufixAs, string topStatement, string leadingComments, IEnumerable<object> innerParameters) = GetBatchSql(query, context, isUpdate: true);
+            (string sql, string tableAlias, string tableAliasSuffixAs, string topStatement, string leadingComments, IEnumerable<object> innerParameters) = GetBatchSql(query, context, isUpdate: true);
             var sqlParameters = new List<object>(innerParameters);
 
             string sqlSET = GetSqlSetSegment(context, updateValues.GetType(), updateValues, updateColumns, sqlParameters);
 
             sqlParameters = ReloadSqlParameters(context, sqlParameters); // Sqlite requires SqliteParameters
 
-            var resultQuery = $"{leadingComments}UPDATE {topStatement}{tableAlias}{tableAliasSufixAs} {sqlSET}{sql}";
+            var resultQuery = $"{leadingComments}UPDATE {topStatement}{tableAlias}{tableAliasSuffixAs} {sqlSET}{sql}";
             return (resultQuery, sqlParameters);
         }
 
@@ -81,7 +81,7 @@ namespace EFCore.BulkExtensions
             CreateUpdateBody(columnNameValueDict, tableAlias, expression.Body, dbType, ref sqlColumns, ref sqlParameters);
 
             sqlParameters = ReloadSqlParameters(context, sqlParameters); // Sqlite requires SqliteParameters
-            sqlColumns = (SqlAdaptersMapping.GetDatabaseType(context) == DbServer.SqlServer) ? sqlColumns : sqlColumns.Replace($"[{tableAlias}].", "");
+            sqlColumns = SqlAdaptersMapping.GetAdapterDialect(context).ReplaceAliasBeforeSuffix(sqlColumns, tableAlias);
 
             var resultQuery = $"{leadingComments}UPDATE {topStatement}{tableAlias}{tableAliasSufixAs} SET {sqlColumns} {sql}";
             return (resultQuery, sqlParameters);
@@ -97,7 +97,6 @@ namespace EFCore.BulkExtensions
             var sqlQueryBuilder = SqlAdaptersMapping.GetAdapterDialect(context);
             var (fullSqlQuery, innerParameters) = query.ToParametrizedSql();
 
-            DbServer databaseType = SqlAdaptersMapping.GetDatabaseType(context);
             var (leadingComments, sqlQuery) = SplitLeadingCommentsAndMainSqlQuery(fullSqlQuery);
 
             string tableAlias = string.Empty;
@@ -169,14 +168,14 @@ namespace EFCore.BulkExtensions
                     {
                         sql += $"[{columnName}] = @{columnName}, ";
                         propertyUpdateValue = propertyUpdateValue ?? DBNull.Value;
-                        var p = SqlClientHelper.CreateParameter(context.Database.GetDbConnection());
+                        var p = SqlAdaptersMapping.GetAdapterDialect(context).CreateParameter();
                         p.ParameterName = $"@{columnName}";
                         p.Value = propertyUpdateValue;
                         parameters.Add(p);
                     }
                 }
             }
-            if (String.IsNullOrEmpty(sql))
+            if (string.IsNullOrEmpty(sql))
             {
                 throw new InvalidOperationException("SET Columns not defined. If one or more columns should be updated to theirs default value use 'updateColumns' argument.");
             }
@@ -185,20 +184,13 @@ namespace EFCore.BulkExtensions
         }
 
         /// <summary>
-        /// Recursive analytic expression 
+        /// Recursive analytic expression.
         /// </summary>
         /// <param name="tableAlias"></param>
         /// <param name="expression"></param>
         /// <param name="sqlColumns"></param>
         /// <param name="sqlParameters"></param>
-        /// <summary>
-        /// Recursive analytic expression 
-        /// </summary>
-        /// <param name="tableAlias"></param>
-        /// <param name="expression"></param>
-        /// <param name="sqlColumns"></param>
-        /// <param name="sqlParameters"></param>
-        public static void CreateUpdateBody(Dictionary<string, string> columnNameValueDict, string tableAlias, Expression expression, DbServer dbType, ref StringBuilder sqlColumns, ref List<object> sqlParameters)
+        public static void CreateUpdateBody(Dictionary<string, string> columnNameValueDict, string tableAlias, Expression expression, string provider, ref StringBuilder sqlColumns, ref List<object> sqlParameters)
         {
             if (expression is MemberInitExpression memberInitExpression)
             {
@@ -213,7 +205,7 @@ namespace EFCore.BulkExtensions
 
                         sqlColumns.Append(" =");
 
-                        CreateUpdateBody(columnNameValueDict, tableAlias, assignment.Expression, dbType, ref sqlColumns, ref sqlParameters);
+                        CreateUpdateBody(columnNameValueDict, tableAlias, assignment.Expression, provider, ref sqlColumns, ref sqlParameters);
 
                         if (memberInitExpression.Bindings.IndexOf(item) < (memberInitExpression.Bindings.Count - 1))
                             sqlColumns.Append(" ,");
@@ -239,23 +231,23 @@ namespace EFCore.BulkExtensions
                 switch (unaryExpression.NodeType)
                 {
                     case ExpressionType.Convert:
-                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, dbType, ref sqlColumns, ref sqlParameters);
+                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, provider, ref sqlColumns, ref sqlParameters);
                         break;
                     case ExpressionType.Not:
                         sqlColumns.Append(" ~");//this way only for SQL Server 
-                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, dbType, ref sqlColumns, ref sqlParameters);
+                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, provider, ref sqlColumns, ref sqlParameters);
                         break;
                     default: break;
                 }
             }
             else if (expression is BinaryExpression binaryExpression)
             {
-                CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Left, dbType, ref sqlColumns, ref sqlParameters);
+                CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Left, provider, ref sqlColumns, ref sqlParameters);
 
                 switch (binaryExpression.NodeType)
                 {
                     case ExpressionType.Add:
-                        var sqlOperator = SqlAdaptersMapping.GetAdapterDialect(dbType)
+                        var sqlOperator = SqlAdaptersMapping.GetAdapterDialect(provider)
                             .GetBinaryExpressionAddOperation(binaryExpression);
                         sqlColumns.Append(" " + sqlOperator);
                         break;
@@ -280,7 +272,7 @@ namespace EFCore.BulkExtensions
                     default: break;
                 }
 
-                CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Right, dbType, ref sqlColumns, ref sqlParameters);
+                CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Right, provider, ref sqlColumns, ref sqlParameters);
             }
             else
             {
@@ -307,8 +299,6 @@ namespace EFCore.BulkExtensions
             return stateManager.Context;
 #pragma warning restore EF1001 // Internal EF Core API usage.
         }
-
-      
 
         public static (string, string) SplitLeadingCommentsAndMainSqlQuery(string sqlQuery)
         {

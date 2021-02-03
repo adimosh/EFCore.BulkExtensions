@@ -9,8 +9,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EFCore.BulkExtensions.SQLAdapters.SQLite
 {
-    public class SqLiteOperationsAdapter: ISqlOperationsAdapter
+    public class Adapter: ISqlOperationsAdapter
     {
+        public void Register()
+        {
+            SqlAdaptersMapping.RegisterMapping<Adapter, Dialect>("SqLite");
+        }
+
         public void Insert<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, Action<decimal> progress)
         {
             var connection = OpenAndGetSqliteConnection(context, tableInfo.BulkConfig);

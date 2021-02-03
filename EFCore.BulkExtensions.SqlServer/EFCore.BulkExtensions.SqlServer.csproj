@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <Title>EFCore.BulkExtensions.SqlServer</Title>
+        <Version>3.2.7</Version>
+        <Description>EntityFramework EF Core Bulk Batch Extensions for Insert Update Delete and Read (CRUD) operations on SQL Server</Description>
+        <PackageReleaseNotes>Split into multiple packages to accomodate different providers</PackageReleaseNotes>
+        <AssemblyVersion>3.2.7.0</AssemblyVersion>
+        <FileVersion>3.2.7.0</FileVersion>
+        <RootNamespace>EFCore.BulkExtensions.Adapters.SqlServer</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="2.0.1" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.8" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.8" />
+        <PackageReference Include="System.Data.SqlClient" Version="4.6.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\EFCore.BulkExtensions\EFCore.BulkExtensions.csproj" />
+    </ItemGroup>
+
+</Project>

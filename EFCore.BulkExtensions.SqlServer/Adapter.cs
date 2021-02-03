@@ -8,269 +8,273 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EFCore.BulkExtensions.SqlAdapters;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
+namespace EFCore.BulkExtensions.Adapters.SqlServer
 {
-    public class SqlOperationsServerAdapter: ISqlOperationsAdapter
+    public class Adapter : ISqlOperationsAdapter
     {
-        internal static string ColumnMappingExceptionMessage => "The given ColumnMapping does not match up with any column in the source or destination";
-        
+        private static string ColumnMappingExceptionMessage => "The given ColumnMapping does not match up with any column in the source or destination";
+
+        public void Register()
+        {
+            SqlAdaptersMapping.RegisterMapping<Adapter, Dialect>("SqlServer");
+        }
+
         public void Insert<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, Action<decimal> progress)
         {
             var connection = OpenAndGetSqlConnection(context, tableInfo.BulkConfig);
-                try
-                {
-                    var transaction = context.Database.CurrentTransaction;
+            try
+            {
+                var transaction = context.Database.CurrentTransaction;
 
-                    // separate logic for System.Data.SqlClient and Microsoft.Data.SqlClient
-                    if (SqlClientHelper.IsSystemConnection(connection))
-                    {
-                        using (var sqlBulkCopy = GetSqlBulkCopy((System.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
-                        {
-                            bool setColumnMapping = false;
-                            tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
-                            try
-                            {
-                                var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
-                                sqlBulkCopy.WriteToServer(dataTable);
-                            }
-                            catch (InvalidOperationException ex)
-                            {
-                                if (ex.Message.Contains(ColumnMappingExceptionMessage))
-                                {
-                                    if (!tableInfo.CheckTableExist(context, tableInfo))
-                                    {
-                                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo)); // Will throw Exception specify missing db column: Invalid column name ''
-                                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
-                                    }
-                                }
-                                throw;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        using (var sqlBulkCopy = GetSqlBulkCopy((Microsoft.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
-                        {
-                            bool setColumnMapping = false;
-                            tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
-                            try
-                            {
-                                var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
-                                sqlBulkCopy.WriteToServer(dataTable);
-                            }
-                            catch (InvalidOperationException ex)
-                            {
-                                if (ex.Message.Contains(ColumnMappingExceptionMessage))
-                                {
-                                    if (!tableInfo.CheckTableExist(context, tableInfo))
-                                    {
-                                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo)); // Will throw Exception specify missing db column: Invalid column name ''
-                                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
-                                    }
-                                }
-                                throw;
-                            }
-                        }
-                    }
-                }
-                finally
+                // separate logic for System.Data.SqlClient and Microsoft.Data.SqlClient
+                if (SqlClientHelper.IsSystemConnection(connection))
                 {
-                    context.Database.CloseConnection();
+                    using (var sqlBulkCopy = GetSqlBulkCopy((System.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
+                    {
+                        bool setColumnMapping = false;
+                        tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
+                        try
+                        {
+                            var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
+                            sqlBulkCopy.WriteToServer(dataTable);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            if (ex.Message.Contains(ColumnMappingExceptionMessage))
+                            {
+                                if (!tableInfo.CheckTableExist(context, tableInfo))
+                                {
+                                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo)); // Will throw Exception specify missing db column: Invalid column name ''
+                                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
+                                }
+                            }
+                            throw;
+                        }
+                    }
                 }
+                else
+                {
+                    using (var sqlBulkCopy = GetSqlBulkCopy((Microsoft.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
+                    {
+                        bool setColumnMapping = false;
+                        tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
+                        try
+                        {
+                            var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
+                            sqlBulkCopy.WriteToServer(dataTable);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            if (ex.Message.Contains(ColumnMappingExceptionMessage))
+                            {
+                                if (!tableInfo.CheckTableExist(context, tableInfo))
+                                {
+                                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo)); // Will throw Exception specify missing db column: Invalid column name ''
+                                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
+                                }
+                            }
+                            throw;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                context.Database.CloseConnection();
+            }
         }
 
         public async Task InsertAsync<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, Action<decimal> progress,
             CancellationToken cancellationToken)
         {
             var connection = await OpenAndGetSqlConnectionAsync(context, tableInfo.BulkConfig, cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    var transaction = context.Database.CurrentTransaction;
+            try
+            {
+                var transaction = context.Database.CurrentTransaction;
 
-                    // separate logic for System.Data.SqlClient and Microsoft.Data.SqlClient
-                    if (SqlClientHelper.IsSystemConnection(connection))
-                    {
-                        using (var sqlBulkCopy = GetSqlBulkCopy((System.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
-                        {
-                            bool setColumnMapping = false;
-                            tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
-                            try
-                            {
-                                var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
-                                await sqlBulkCopy.WriteToServerAsync(dataTable, cancellationToken).ConfigureAwait(false);
-                            }
-                            catch (InvalidOperationException ex)
-                            {
-                                if (ex.Message.Contains(ColumnMappingExceptionMessage))
-                                {
-                                    if (!await tableInfo.CheckTableExistAsync(context, tableInfo, cancellationToken).ConfigureAwait(false))
-                                    {
-                                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
-                                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
-                                    }
-                                }
-                                throw;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        using (var sqlBulkCopy = GetSqlBulkCopy((Microsoft.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
-                        {
-                            bool setColumnMapping = false;
-                            tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
-                            try
-                            {
-                                var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
-                                await sqlBulkCopy.WriteToServerAsync(dataTable, cancellationToken).ConfigureAwait(false);
-                            }
-                            catch (InvalidOperationException ex)
-                            {
-                                if (ex.Message.Contains(ColumnMappingExceptionMessage))
-                                {
-                                    if (!await tableInfo.CheckTableExistAsync(context, tableInfo, cancellationToken).ConfigureAwait(false))
-                                    {
-                                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
-                                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
-                                    }
-                                }
-                                throw;
-                            }
-                        }
-                    }
-                }
-                finally
+                // separate logic for System.Data.SqlClient and Microsoft.Data.SqlClient
+                if (SqlClientHelper.IsSystemConnection(connection))
                 {
-                    await context.Database.CloseConnectionAsync().ConfigureAwait(false);
+                    using (var sqlBulkCopy = GetSqlBulkCopy((System.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
+                    {
+                        bool setColumnMapping = false;
+                        tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
+                        try
+                        {
+                            var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
+                            await sqlBulkCopy.WriteToServerAsync(dataTable, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            if (ex.Message.Contains(ColumnMappingExceptionMessage))
+                            {
+                                if (!await tableInfo.CheckTableExistAsync(context, tableInfo, cancellationToken).ConfigureAwait(false))
+                                {
+                                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
+                                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
+                                }
+                            }
+                            throw;
+                        }
+                    }
                 }
+                else
+                {
+                    using (var sqlBulkCopy = GetSqlBulkCopy((Microsoft.Data.SqlClient.SqlConnection)connection, transaction, tableInfo.BulkConfig))
+                    {
+                        bool setColumnMapping = false;
+                        tableInfo.SetSqlBulkCopyConfig(sqlBulkCopy, entities, setColumnMapping, progress);
+                        try
+                        {
+                            var dataTable = GetDataTable(context, type, entities, sqlBulkCopy, tableInfo);
+                            await sqlBulkCopy.WriteToServerAsync(dataTable, cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            if (ex.Message.Contains(ColumnMappingExceptionMessage))
+                            {
+                                if (!await tableInfo.CheckTableExistAsync(context, tableInfo, cancellationToken).ConfigureAwait(false))
+                                {
+                                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
+                                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
+                                }
+                            }
+                            throw;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                await context.Database.CloseConnectionAsync().ConfigureAwait(false);
+            }
         }
 
         public void Merge<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, OperationType operationType,
             Action<decimal> progress) where T : class
         {
-           tableInfo.InsertToTempTable = true;
+            tableInfo.InsertToTempTable = true;
 
-                var dropTempTableIfExists = tableInfo.BulkConfig.UseTempDB;
+            var dropTempTableIfExists = tableInfo.BulkConfig.UseTempDB;
 
-                if (dropTempTableIfExists)
+            if (dropTempTableIfExists)
+            {
+                context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
+            }
+
+            context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo));
+            if (tableInfo.CreatedOutputTable)
+            {
+                context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempOutputTableName, tableInfo, true));
+                if (tableInfo.TimeStampColumnName != null)
                 {
+                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.AddColumn(tableInfo.FullTempOutputTableName, tableInfo.TimeStampColumnName, tableInfo.TimeStampOutColumnType));
+                }
+            }
+
+            bool keepIdentity = tableInfo.BulkConfig.SqlBulkCopyOptions.HasFlag(Microsoft.Data.SqlClient.SqlBulkCopyOptions.KeepIdentity);
+            try
+            {
+                Insert(context, type, entities, tableInfo, progress);
+
+                if (keepIdentity && tableInfo.HasIdentity)
+                {
+                    context.Database.OpenConnection();
+                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, true));
+                }
+
+                context.Database.ExecuteSqlRaw(SqlQueryBuilder.MergeTable(tableInfo, operationType));
+
+                if (tableInfo.CreatedOutputTable)
+                {
+                    tableInfo.LoadOutputData(context, type, entities);
+                }
+            }
+            finally
+            {
+                if (!tableInfo.BulkConfig.UseTempDB)
+                {
+                    if (tableInfo.CreatedOutputTable)
+                    {
+                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempOutputTableName, tableInfo.BulkConfig.UseTempDB));
+                    }
                     context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
                 }
 
-                context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo));
-                if (tableInfo.CreatedOutputTable)
+                if (keepIdentity && tableInfo.HasIdentity)
                 {
-                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempOutputTableName, tableInfo, true));
-                    if (tableInfo.TimeStampColumnName != null)
-                    {
-                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.AddColumn(tableInfo.FullTempOutputTableName, tableInfo.TimeStampColumnName, tableInfo.TimeStampOutColumnType));
-                    }
+                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, false));
+                    context.Database.CloseConnection();
                 }
-
-                bool keepIdentity = tableInfo.BulkConfig.SqlBulkCopyOptions.HasFlag(Microsoft.Data.SqlClient.SqlBulkCopyOptions.KeepIdentity);
-                try
-                {
-                    Insert(context, type, entities, tableInfo, progress);
-
-                    if (keepIdentity && tableInfo.HasIdentity)
-                    {
-                        context.Database.OpenConnection();
-                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, true));
-                    }
-
-                    context.Database.ExecuteSqlRaw(SqlQueryBuilder.MergeTable(tableInfo, operationType));
-
-                    if (tableInfo.CreatedOutputTable)
-                    {
-                        tableInfo.LoadOutputData(context, type, entities);
-                    }
-                }
-                finally
-                {
-                    if (!tableInfo.BulkConfig.UseTempDB)
-                    {
-                        if (tableInfo.CreatedOutputTable)
-                        {
-                            context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempOutputTableName, tableInfo.BulkConfig.UseTempDB));
-                        }
-                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB));
-                    }
-
-                    if (keepIdentity && tableInfo.HasIdentity)
-                    {
-                        context.Database.ExecuteSqlRaw(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, false));
-                        context.Database.CloseConnection();
-                    }
-                }
+            }
         }
 
         public async Task MergeAsync<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, OperationType operationType,
             Action<decimal> progress, CancellationToken cancellationToken) where T : class
         {
-           tableInfo.InsertToTempTable = true;
+            tableInfo.InsertToTempTable = true;
 
-                var dropTempTableIfExists = tableInfo.BulkConfig.UseTempDB;
+            var dropTempTableIfExists = tableInfo.BulkConfig.UseTempDB;
 
-                if (dropTempTableIfExists)
+            if (dropTempTableIfExists)
+            {
+                await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
+            }
+
+            await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
+            if (tableInfo.CreatedOutputTable)
+            {
+                await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempOutputTableName, tableInfo, true), cancellationToken).ConfigureAwait(false);
+                if (tableInfo.TimeStampColumnName != null)
                 {
+                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.AddColumn(tableInfo.FullTempOutputTableName, tableInfo.TimeStampColumnName, tableInfo.TimeStampOutColumnType), cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            bool keepIdentity = tableInfo.BulkConfig.SqlBulkCopyOptions.HasFlag(Microsoft.Data.SqlClient.SqlBulkCopyOptions.KeepIdentity);
+            try
+            {
+                await InsertAsync(context, type, entities, tableInfo, progress, cancellationToken).ConfigureAwait(false);
+
+                if (keepIdentity && tableInfo.HasIdentity)
+                {
+                    await context.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, true), cancellationToken).ConfigureAwait(false);
+                }
+
+                await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.MergeTable(tableInfo, operationType), cancellationToken).ConfigureAwait(false);
+
+                if (tableInfo.CreatedOutputTable)
+                {
+                    await tableInfo.LoadOutputDataAsync(context, type, entities, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (!tableInfo.BulkConfig.UseTempDB)
+                {
+                    if (tableInfo.CreatedOutputTable)
+                    {
+                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempOutputTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
+                    }
                     await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
                 }
 
-                await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
-                if (tableInfo.CreatedOutputTable)
+                if (keepIdentity && tableInfo.HasIdentity)
                 {
-                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempOutputTableName, tableInfo, true), cancellationToken).ConfigureAwait(false);
-                    if (tableInfo.TimeStampColumnName != null)
-                    {
-                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.AddColumn(tableInfo.FullTempOutputTableName, tableInfo.TimeStampColumnName, tableInfo.TimeStampOutColumnType), cancellationToken).ConfigureAwait(false);
-                    }
+                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, false), cancellationToken).ConfigureAwait(false);
+                    context.Database.CloseConnection();
                 }
-
-                bool keepIdentity = tableInfo.BulkConfig.SqlBulkCopyOptions.HasFlag(Microsoft.Data.SqlClient.SqlBulkCopyOptions.KeepIdentity);
-                try
-                {
-                    await InsertAsync(context, type, entities, tableInfo, progress, cancellationToken).ConfigureAwait(false);
-
-                    if (keepIdentity && tableInfo.HasIdentity)
-                    {
-                        await context.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, true), cancellationToken).ConfigureAwait(false);
-                    }
-
-                    await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.MergeTable(tableInfo, operationType), cancellationToken).ConfigureAwait(false);
-
-                    if (tableInfo.CreatedOutputTable)
-                    {
-                        await tableInfo.LoadOutputDataAsync(context, type, entities, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                finally
-                {
-                    if (!tableInfo.BulkConfig.UseTempDB)
-                    {
-                        if (tableInfo.CreatedOutputTable)
-                        {
-                            await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempOutputTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
-                        }
-                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.DropTable(tableInfo.FullTempTableName, tableInfo.BulkConfig.UseTempDB), cancellationToken).ConfigureAwait(false);
-                    }
-
-                    if (keepIdentity && tableInfo.HasIdentity)
-                    {
-                        await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.SetIdentityInsert(tableInfo.FullTableName, false), cancellationToken).ConfigureAwait(false);
-                        context.Database.CloseConnection();
-                    }
-                }
+            }
         }
 
         public void Read<T>(DbContext context, Type type, IList<T> entities, TableInfo tableInfo, Action<decimal> progress) where T : class
         {
             Dictionary<string, string> previousPropertyColumnNamesDict = tableInfo.ConfigureBulkReadTableInfo(context);
-            
+
             context.Database.ExecuteSqlRaw(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo));
             try
             {
@@ -309,7 +313,7 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
             CancellationToken cancellationToken) where T : class
         {
             Dictionary<string, string> previousPropertyColumnNamesDict = tableInfo.ConfigureBulkReadTableInfo(context);
-            
+
             await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.CreateTableCopy(tableInfo.FullTableName, tableInfo.FullTempTableName, tableInfo), cancellationToken).ConfigureAwait(false);
             try
             {
@@ -353,7 +357,7 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
         {
             await context.Database.ExecuteSqlRawAsync(SqlQueryBuilder.TruncateTable(tableInfo.FullTableName));
         }
-        
+
         #region Connection
         internal static DbConnection OpenAndGetSqlConnection(DbContext context, BulkConfig config)
         {
@@ -368,7 +372,7 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
 
             return context.GetUnderlyingConnection(config);
         }
-        
+
         private static Microsoft.Data.SqlClient.SqlBulkCopy GetSqlBulkCopy(Microsoft.Data.SqlClient.SqlConnection sqlConnection, IDbContextTransaction transaction, BulkConfig config)
         {
             var sqlBulkCopyOptions = config.SqlBulkCopyOptions;
@@ -397,7 +401,7 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
             }
         }
         #endregion
-        
+
         #region DataTable
         /// <summary>
         /// Supports <see cref="Microsoft.Data.SqlClient.SqlBulkCopy"/>
@@ -440,9 +444,9 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
             }
             return dataTable;
         }
-        
-        
-       /// <summary>
+
+
+        /// <summary>
         /// Common logic for two versions of GetDataTable
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -616,6 +620,6 @@ namespace EFCore.BulkExtensions.SQLAdapters.SQLServer
 
             return dataTable;
         }
-       #endregion
+        #endregion
     }
 }
