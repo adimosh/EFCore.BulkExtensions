@@ -14,9 +14,9 @@ namespace EFCore.BulkExtensions.Tests
         protected int EntitiesNumber => 1000;
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        public void BatchTest(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        public void BatchTest(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
 
@@ -44,7 +44,7 @@ namespace EFCore.BulkExtensions.Tests
                 Assert.EndsWith(" TOP(1)", firstItem.Name);
             }
 
-            if (databaseType == DbServer.SqlServer)
+            if (databaseType == "SqlServer")
             {
                 RunUdttBatch();
             }
@@ -59,7 +59,7 @@ namespace EFCore.BulkExtensions.Tests
         //   See https://go.microsoft.com/fwlink/?linkid=2101038 for more information.
         //   QueryableMethodTranslatingExpressionVisitor.<VisitMethodCall>g__CheckTranslated|8_0(ShapedQueryExpression translated, <>c__DisplayClass8_0& )
 
-        internal void RunDeleteAll(DbServer databaseType)
+        internal void RunDeleteAll(string databaseType)
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -69,11 +69,11 @@ namespace EFCore.BulkExtensions.Tests
                 context.Items.BatchDelete();
                 context.BulkDelete(context.Items.ToList());
 
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.Database.ExecuteSqlRaw("DBCC CHECKIDENT('[dbo].[Item]', RESEED, 0);");
                 }
-                if (databaseType == DbServer.Sqlite)
+                if (databaseType == "Sqlite")
                 {
                     context.Database.ExecuteSqlRaw("DELETE FROM sqlite_sequence WHERE name = 'Item';");
                 }

@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using EFCore.BulkExtensions.SqlAdapters;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -20,10 +18,10 @@ namespace EFCore.BulkExtensions.Tests
         private static Func<TestContext, IEnumerable<Item>> AllItemsQuery = EF.CompileQuery<TestContext, IEnumerable<Item>>(ctx => ctx.Items.AsNoTracking());
 
         [Theory]
-        [InlineData(DbServer.SqlServer, true)]
-        [InlineData(DbServer.Sqlite, true)]
+        [InlineData("SqlServer", true)]
+        [InlineData("Sqlite", true)]
         //[InlineData(DatabaseType.SqlServer, false)] // for speed comparison with Regular EF CUD operations
-        public async Task OperationsTestAsync(DbServer databaseType, bool isBulkOperation)
+        public async Task OperationsTestAsync(string databaseType, bool isBulkOperation)
         {
             ContextUtil.DbServer = databaseType;
 
@@ -33,7 +31,7 @@ namespace EFCore.BulkExtensions.Tests
             await RunInsertAsync(isBulkOperation);
             await RunInsertOrUpdateAsync(isBulkOperation);
             await RunUpdateAsync(isBulkOperation);
-            if (databaseType == DbServer.SqlServer)
+            if (databaseType == "SqlServer")
             {
                 await RunReadAsync(isBulkOperation); // Not Yet supported for Sqlite
             }
@@ -41,16 +39,16 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        public async Task SideEffectsTestAsync(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        public async Task SideEffectsTestAsync(string databaseType)
         {
             await BulkOperationShouldNotCloseOpenConnectionAsync(databaseType, context => context.BulkInsertAsync(new[] { new Item() }));
             await BulkOperationShouldNotCloseOpenConnectionAsync(databaseType, context => context.BulkUpdateAsync(new[] { new Item() }));
         }
 
         private static async Task BulkOperationShouldNotCloseOpenConnectionAsync(
-            DbServer databaseType,
+            string databaseType,
             Func<TestContext, Task> bulkOperation)
         {
             ContextUtil.DbServer = databaseType;
@@ -69,11 +67,11 @@ namespace EFCore.BulkExtensions.Tests
 
                     switch (databaseType)
                     {
-                        case DbServer.Sqlite:
+                        case "Sqlite":
                             createTableSql = $"CREATE TEMPORARY {createTableSql}";
                             break;
 
-                        case DbServer.SqlServer:
+                        case "SqlServer":
                             createTableSql = $"CREATE {createTableSql}";
                             break;
 
@@ -131,7 +129,7 @@ namespace EFCore.BulkExtensions.Tests
 
                 if (isBulkOperation)
                 {
-                    if (ContextUtil.DbServer == DbServer.SqlServer)
+                    if (ContextUtil.DbServer == "SqlServer")
                     {
                         using (var transaction = await context.Database.BeginTransactionAsync())
                         {
@@ -151,7 +149,7 @@ namespace EFCore.BulkExtensions.Tests
                             transaction.Commit();
                         }
                     }
-                    else if (ContextUtil.DbServer == DbServer.Sqlite)
+                    else if (ContextUtil.DbServer == "Sqlite")
                     {
                         using (var transaction = context.Database.BeginTransaction())
                         {
@@ -301,7 +299,7 @@ namespace EFCore.BulkExtensions.Tests
             }
         }
 
-        private async Task RunDeleteAsync(bool isBulkOperation, DbServer databaseType)
+        private async Task RunDeleteAsync(bool isBulkOperation, string databaseType)
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -330,11 +328,11 @@ namespace EFCore.BulkExtensions.Tests
 
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     await context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT('[dbo].[Item]', RESEED, 0);").ConfigureAwait(false);
                 }
-                if (databaseType == DbServer.Sqlite)
+                if (databaseType == "Sqlite")
                 {
                     await context.Database.ExecuteSqlRawAsync("DELETE FROM sqlite_sequence WHERE name = 'Item';").ConfigureAwait(false);
                 }

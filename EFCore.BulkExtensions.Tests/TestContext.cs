@@ -67,19 +67,19 @@ namespace EFCore.BulkExtensions.Tests
 
     public static class ContextUtil
     {
-        public static DbServer DbServer { get; set; }
+        public static string DbServer { get; set; }
 
         public static DbContextOptions GetOptions()
         {
             var databaseName = nameof(EFCoreBulkTest);
             var optionsBuilder = new DbContextOptionsBuilder<TestContext>();
 
-            if (DbServer == DbServer.SqlServer)
+            if (DbServer == "SqlServer")
             {
                 var connectionString = $"Server=localhost;Database={databaseName};Trusted_Connection=True;MultipleActiveResultSets=true";
                 optionsBuilder.UseSqlServer(connectionString); // Can NOT Test with UseInMemoryDb (Exception: Relational-specific methods can only be used when the context is using a relational)
             }
-            else if (DbServer == DbServer.Sqlite)
+            else if (DbServer == "Sqlite")
             {
                 string connectionString = $"Data Source={databaseName}.db";
                 optionsBuilder.UseSqlite(connectionString);

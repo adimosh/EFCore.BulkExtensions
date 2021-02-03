@@ -21,10 +21,10 @@ namespace EFCore.BulkExtensions.Tests
         private static Func<TestContext, IEnumerable<Item>> AllItemsQuery = EF.CompileQuery<TestContext, IEnumerable<Item>>(ctx => ctx.Items.AsNoTracking());
 
         [Theory]
-        [InlineData(DbServer.SqlServer, true)]
-        [InlineData(DbServer.Sqlite, true)]
+        [InlineData("SqlServer", true)]
+        [InlineData("Sqlite", true)]
         //[InlineData(DbServer.SqlServer, false)] // for speed comparison with Regular EF CUD operations
-        public void OperationsTest(DbServer databaseType, bool isBulkOperation)
+        public void OperationsTest(string databaseType, bool isBulkOperation)
         {
             ContextUtil.DbServer = databaseType;
 
@@ -34,7 +34,7 @@ namespace EFCore.BulkExtensions.Tests
             RunInsert(isBulkOperation);
             RunInsertOrUpdate(isBulkOperation);
             RunUpdate(isBulkOperation, databaseType);
-            if (databaseType == DbServer.SqlServer)
+            if (databaseType == "SqlServer")
             {
                 RunRead(isBulkOperation); // Not Yet supported for Sqlite
             }
@@ -44,16 +44,16 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        public void SideEffectsTest(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        public void SideEffectsTest(string databaseType)
         {
             BulkOperationShouldNotCloseOpenConnection(databaseType, context => context.BulkInsert(new[] { new Item() }));
             BulkOperationShouldNotCloseOpenConnection(databaseType, context => context.BulkUpdate(new[] { new Item() }));
         }
 
         private static void BulkOperationShouldNotCloseOpenConnection(
-            DbServer databaseType,
+            string databaseType,
             Action<TestContext> bulkOperation)
         {
             ContextUtil.DbServer = databaseType;
@@ -72,11 +72,11 @@ namespace EFCore.BulkExtensions.Tests
 
                     switch (databaseType)
                     {
-                        case DbServer.Sqlite:
+                        case "Sqlite":
                             createTableSql = $"CREATE TEMPORARY {createTableSql}";
                             break;
 
-                        case DbServer.SqlServer:
+                        case "SqlServer":
                             createTableSql = $"CREATE {createTableSql}";
                             break;
 
@@ -157,7 +157,7 @@ namespace EFCore.BulkExtensions.Tests
 
                 if (isBulkOperation)
                 {
-                    if (ContextUtil.DbServer == DbServer.SqlServer)
+                    if (ContextUtil.DbServer == "SqlServer")
                     {
                         using (var transaction = context.Database.BeginTransaction())
                         {
@@ -186,7 +186,7 @@ namespace EFCore.BulkExtensions.Tests
                             transaction.Commit();
                         }
                     }
-                    else if (ContextUtil.DbServer == DbServer.Sqlite)
+                    else if (ContextUtil.DbServer == "Sqlite")
                     {
                         using (var transaction = context.Database.BeginTransaction())
                         {
@@ -274,7 +274,7 @@ namespace EFCore.BulkExtensions.Tests
             }
         }
 
-        private void RunUpdate(bool isBulkOperation, DbServer databaseType)
+        private void RunUpdate(bool isBulkOperation, string databaseType)
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -292,7 +292,7 @@ namespace EFCore.BulkExtensions.Tests
                         new BulkConfig
                         {
                             PropertiesToInclude = new List<string> { nameof(Item.Description) },
-                            UpdateByProperties = databaseType == DbServer.SqlServer ? new List<string> { nameof(Item.Name) } : null
+                            UpdateByProperties = databaseType == "SqlServer" ? new List<string> { nameof(Item.Name) } : null
                         }
                     );
                 }
@@ -345,7 +345,7 @@ namespace EFCore.BulkExtensions.Tests
             }
         }
 
-        private void RunDelete(bool isBulkOperation, DbServer databaseType)
+        private void RunDelete(bool isBulkOperation, string databaseType)
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -375,11 +375,11 @@ namespace EFCore.BulkExtensions.Tests
             // Resets AutoIncrement
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.Database.ExecuteSqlRaw("DBCC CHECKIDENT ('dbo.[" + nameof(Item) + "]', RESEED, 0);"); // can NOT use $"...{nameof(Item)..." because it gets parameterized
                 }
-                else if (databaseType == DbServer.Sqlite)
+                else if (databaseType == "Sqlite")
                 {
                     context.Database.ExecuteSqlRaw("DELETE FROM sqlite_sequence WHERE name = 'Item';");
                 }

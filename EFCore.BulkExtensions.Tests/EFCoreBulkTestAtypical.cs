@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -13,9 +12,9 @@ namespace EFCore.BulkExtensions.Tests
         protected int EntitiesNumber => 1000;
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)] // Does NOT have Computed Columns and TimeStamp can be set with DefaultValueSql: "CURRENT_TIMESTAMP" as it is in OnModelCreating() method.
-        private void InsertWithDbComputedColumnsAndOutput(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")] // Does NOT have Computed Columns and TimeStamp can be set with DefaultValueSql: "CURRENT_TIMESTAMP" as it is in OnModelCreating() method.
+        private void InsertWithDbComputedColumnsAndOutput(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             using (var context = new TestContext(ContextUtil.GetOptions()))
@@ -29,7 +28,7 @@ namespace EFCore.BulkExtensions.Tests
                     {
                         Content = "Some data " + i
                     };
-                    if (databaseType == DbServer.Sqlite)
+                    if (databaseType == "Sqlite")
                     {
                         entity.ContentLength = entity.Content.Length;
                     }
@@ -39,9 +38,9 @@ namespace EFCore.BulkExtensions.Tests
                 //context.BulkInsert(entities, new BulkConfig { SetOutputIdentity = true });
                 context.BulkInsert(entities, bulkAction => bulkAction.SetOutputIdentity = true); // example of setting BulkConfig with Action argument
 
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
-                    context.BulkRead(entities, new BulkConfig() { SetOutputIdentity = true }); //  Not Yet supported for Sqlite (To Test BulkRead with ComputedColumns)
+                    context.BulkRead(entities, new BulkConfig { SetOutputIdentity = true }); //  Not Yet supported for Sqlite (To Test BulkRead with ComputedColumns)
                 }
             }
             using (var context = new TestContext(ContextUtil.GetOptions()))
@@ -52,9 +51,9 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        private void InsertAndUpdateWithCompositeKey(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        private void InsertAndUpdateWithCompositeKey(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             using (var context = new TestContext(ContextUtil.GetOptions()))
@@ -90,9 +89,9 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        private void InsertWithDiscriminatorShadow(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        private void InsertWithDiscriminatorShadow(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             using (var context = new TestContext(ContextUtil.GetOptions()))
@@ -144,9 +143,9 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        private void InsertWithValueConversion(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        private void InsertWithValueConversion(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             var dateTime = DateTime.Today;
@@ -171,7 +170,7 @@ namespace EFCore.BulkExtensions.Tests
                 context.BulkInsert(entities);
             }
 
-            if (databaseType == DbServer.SqlServer)
+            if (databaseType == "SqlServer")
             {
                 using (var context = new TestContext(ContextUtil.GetOptions()))
                 {
@@ -188,7 +187,7 @@ namespace EFCore.BulkExtensions.Tests
                         command.CommandText = $"SELECT TOP 1 * FROM {nameof(Info)} ORDER BY {nameof(Info.InfoId)} DESC";
                         var reader = command.ExecuteReader();
                         reader.Read();
-                        var row = new Info()
+                        var row = new Info
                         {
                             ConvertedTime = reader.Field<DateTime>(nameof(Info.ConvertedTime))
                         };
@@ -199,14 +198,14 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        private void InsertWithOwnedTypes(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        private void InsertWithOwnedTypes(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.Truncate<ChangeLog>();
                     context.Database.ExecuteSqlRaw("TRUNCATE TABLE [" + nameof(ChangeLog) + "]");
@@ -245,7 +244,7 @@ namespace EFCore.BulkExtensions.Tests
                 }
                 context.BulkInsert(entities);
 
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.BulkRead(
                         entities,
@@ -260,14 +259,14 @@ namespace EFCore.BulkExtensions.Tests
         }
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        private void InsertWithForeignKeyShadowProperties(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        private void InsertWithForeignKeyShadowProperties(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.Truncate<ItemLink>();
                     context.Database.ExecuteSqlRaw("TRUNCATE TABLE [" + nameof(ItemLink) + "]");
@@ -308,7 +307,7 @@ namespace EFCore.BulkExtensions.Tests
                 }
                 context.BulkInsert(entities);
 
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     context.BulkRead(entities);
                     foreach (var entity in entities)

@@ -1,5 +1,4 @@
-﻿using EFCore.BulkExtensions.SqlAdapters;
-using Xunit;
+﻿using Xunit;
 
 namespace EFCore.BulkExtensions.Tests
 {
@@ -8,7 +7,7 @@ namespace EFCore.BulkExtensions.Tests
         [Fact]
         public void GetBatchSql_UpdateSqlite_ReturnsExpectedValues()
         {
-            ContextUtil.DbServer = DbServer.Sqlite;
+            ContextUtil.DbServer = "Sqlite";
 
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {

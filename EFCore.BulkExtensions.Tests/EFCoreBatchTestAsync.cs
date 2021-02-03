@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using EFCore.BulkExtensions.SqlAdapters;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -13,9 +12,9 @@ namespace EFCore.BulkExtensions.Tests
         protected int EntitiesNumber => 1000;
 
         [Theory]
-        [InlineData(DbServer.SqlServer)]
-        [InlineData(DbServer.Sqlite)]
-        public async Task BatchTestAsync(DbServer databaseType)
+        [InlineData("SqlServer")]
+        [InlineData("Sqlite")]
+        public async Task BatchTestAsync(string databaseType)
         {
             ContextUtil.DbServer = databaseType;
 
@@ -39,7 +38,7 @@ namespace EFCore.BulkExtensions.Tests
             }
         }
 
-        internal async Task RunDeleteAllAsync(DbServer databaseType)
+        internal async Task RunDeleteAllAsync(string databaseType)
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -49,11 +48,11 @@ namespace EFCore.BulkExtensions.Tests
                 //await context.Items.BatchDeleteAsync(); // TODO: Use after BatchDelete gets implemented for v3.0 
                 await context.BulkDeleteAsync(context.Items.ToList());
 
-                if (databaseType == DbServer.SqlServer)
+                if (databaseType == "SqlServer")
                 {
                     await context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT('[dbo].[Item]', RESEED, 0);").ConfigureAwait(false);
                 }
-                if (databaseType == DbServer.Sqlite)
+                if (databaseType == "Sqlite")
                 {
                     await context.Database.ExecuteSqlRawAsync("DELETE FROM sqlite_sequence WHERE name = 'Item';").ConfigureAwait(false);
                 }
